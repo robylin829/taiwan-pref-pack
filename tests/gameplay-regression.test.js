@@ -7,15 +7,18 @@ import {pieceScale,polygonArea,shakeablePieces} from '../src/geometry-scale.js';
 const displayedArea=rings=>rings.reduce((sum,r)=>{
   const p=r[0];return sum+polygonArea(r.map(q=>[q[0]-p[0],q[1]-p[1]]));
 },0)*pieceScale(rings)**2;
-test('adding a county never shrinks the total displayed area, including completing a region',()=>{
+test('single counties are large, and merging compacts their combined displayed area',()=>{
   for(const region of regions){
-    let rings=[],previous=0;
+    let rings=[],individualArea=0;
     for(const id of region.ids){
       const next=counties.find(c=>c.id===id).points;
       const single=displayedArea([next]);rings.push(next);
+      individualArea+=single;
       const merged=displayedArea(rings);
-      assert.ok(merged>=previous+single-.001,`${region.name} must retain both inputs' area`);
-      previous=merged;
+      if(rings.length>1)assert.ok(Math.abs(merged/individualArea-.72**2)<.00001,`${region.name} should pack down after merging`);
+      const xs=next.map(p=>p[0]),ys=next.map(p=>p[1]);
+      const extent=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys));
+      assert.ok(Math.abs(extent*pieceScale([next])-84)<.001);
     }
   }
 });

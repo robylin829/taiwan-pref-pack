@@ -16,10 +16,18 @@ test('every mainland region can be completed through real geographic neighbors',
     assert.equal(completedRegions(group)[0].id,r.id);
   }
 });
-test('duplicate, separated and cross-region counties cannot merge',()=>{
+test('all adjacent counties can merge across regional boundaries; duplicates and distant counties cannot',()=>{
   assert.equal(canMerge(['63000'],['63000'],counties),false);
   assert.equal(canMerge(['63000'],['10018'],counties),false);
-  assert.equal(canMerge(['10015'],['10002'],counties),false);
+  assert.equal(canMerge(['10015'],['10002'],counties),true);
+  assert.equal(canMerge(['10004'],['10005'],counties),true);
+  assert.equal(canMerge(['10009'],['10010'],counties),true);
+  assert.equal(canMerge(['63000'],['64000'],counties),false);
+  assert.equal(canMerge(['65000','10004'],['10005'],counties),true);
+  for(const c of counties)for(const neighbor of c.neighbors){
+    assert.ok(canMerge([c.id],[neighbor],counties));
+    assert.ok(canMerge([neighbor],[c.id],counties));
+  }
   assert.equal(canMerge(['10015'],['10014'],counties),true);
   assert.equal(canMerge(['09020'],['09007'],counties),true);
 });

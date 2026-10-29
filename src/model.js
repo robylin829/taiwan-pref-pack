@@ -7,14 +7,12 @@ export const regions = [
 ];
 export const regionOf=id=>regions.find(r=>r.ids.includes(id));
 export function completedRegions(ids){return regions.filter(r=>r.ids.every(id=>ids.includes(id)))}
+// Game-only sea links keep the offshore counties reachable from the main island.
+const seaLinks=[['10016','09020'],['10016','09007'],['09020','09007'],['10016','64000'],['09007','10017']];
 export function canMerge(a,b,countyData){
   if(a.some(id=>b.includes(id)))return false;
-  const ra=completedRegions(a),rb=completedRegions(b);
-  if(ra.reduce((s,r)=>s+r.ids.length,0)===a.length&&rb.reduce((s,r)=>s+r.ids.length,0)===b.length)return true;
-  const r=regionOf(a[0]);
-  if(![...a,...b].every(id=>r.ids.includes(id)))return false;
-  if(r.id==='islands')return true;
-  return a.some(id=>countyData.find(c=>c.id===id).neighbors.some(n=>b.includes(n)));
+  return a.some(id=>countyData.find(c=>c.id===id)?.neighbors.some(n=>b.includes(n))) ||
+    seaLinks.some(([x,y])=>(a.includes(x)&&b.includes(y))||(a.includes(y)&&b.includes(x)));
 }
 export function mergeScore(ids){return ids.length*15+completedRegions(ids).length*100+(ids.length===22?1000:0)}
 export function shuffledBag(random=Math.random){
