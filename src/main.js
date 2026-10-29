@@ -65,6 +65,7 @@ function preview(){const c=$('next').getContext('2d');c.clearRect(0,0,100,80);if
 function updateUI(){
   $('score').textContent=score;$('best').textContent=Math.max(best,score);$('shuffle').disabled=phase!=='playing';$('pause').disabled=phase==='home'||phase==='over';$('reset').disabled=phase==='home';
   const max=pieces.reduce((n,p)=>Math.max(n,p.ids.length),0);$('largest').textContent=`最大合體 ${max} / 22`;
+  const collected=new Set(pieces.flatMap(p=>p.ids)).size;$('remaining').textContent=`剩餘縣市：${counties.length-collected} / ${counties.length}`;
   $('region-list').innerHTML=regions.map(r=>{const count=pieces.reduce((n,p)=>Math.max(n,p.ids.filter(id=>r.ids.includes(id)).length),0);return `<button class="region-row ${count===r.ids.length?'complete':''}" style="--c:${r.color}" data-region="${r.id}" aria-label="查看${r.name}"><span class="region-emblem">${r.short}</span><span class="region-info"><b>${r.name}</b><span class="region-progress"><i style="width:${count/r.ids.length*100}%"></i></span></span></button>`}).join('');
 }
 function resetGame(){Composite.clear(engine.world,false);Composite.add(engine.world,walls);pieces=[];particles=[];pending=[];bag=shuffledBag();current=take();next=take();score=0;shakeStart=-Infinity;shakePulse=0,queuedDrop=false;dropNumber=0;overflow=0;lastDrop=-1000;aim=W/2;engine.timing.timestamp=0;clearSave();$('start-overlay').hidden=true;phase='playing';$('board-hint').hidden=false;$('game-status').textContent='找找看，誰和誰是鄰居？';updateUI();preview();canvas.focus({preventScroll:true})}
