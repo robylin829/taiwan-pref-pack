@@ -2,6 +2,10 @@
 
 一款以台灣 22 縣市為主角的物理掉落合體遊戲。移動、落下，讓同一地方的相鄰縣市碰撞合體，最後把五個地方拼成完整台灣。
 
+線上遊玩：**https://robylin829.github.io/taiwan-pref-pack/**
+
+推送到 `main` 後，GitHub Actions 會先執行測試與建置，再自動部署至 GitHub Pages。Pull request 只執行檢查。
+
 玩法靈感來自 [Dopamine Game Lab 的新・都道府県ゲーム](https://sns.dopagamelab.com/pref-pack/)。本專案的介面、程式與台灣內容重新實作，未使用原站程式、音樂或美術素材，亦非官方作品。
 
 ## 執行
