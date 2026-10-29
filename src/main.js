@@ -1,5 +1,6 @@
 import {counties} from './counties.js';
 import {joltBodies} from './shake.js';
+import {pieceScale,shakeablePieces} from './geometry-scale.js';
 import {countyLabelAnchors,visibleCountyLabels} from './labels.js';
 import {regions,regionOf,completedRegions,canMerge,mergeScore,shuffledBag} from './model.js';
 const {Engine,Bodies,Body,Composite,Events,Common,Vertices}=window.Matter;
@@ -10,7 +11,7 @@ const floor=Bodies.rectangle(W/2,H+20,W+80,50,{isStatic:true});
 const walls=[floor,Bodies.rectangle(-16,H/2,40,H*3,{isStatic:true}),Bodies.rectangle(W+16,H/2,40,H*3,{isStatic:true})];
 Composite.add(engine.world,walls);
 const SAVE='taiwan-pack-save-v1',RECORDS='taiwan-pack-records-v1';
-let pieces=[],bag=[],current=null,next=null,score=0,aim=W/2,phase='home',lastDrop=0,dropNumber=0,lastTime=0,accumulator=0,overflow=0,pending=[],particles=[],muted=true,audio,saveTimer=0,toastTimer,shakeStart=-Infinity,shakePulse=0;
+let pieces=[],bag=[],current=null,next=null,score=0,aim=W/2,phase='home',lastDrop=0,dropNumber=0,lastTime=0,accumulator=0,overflow=0,pending=[],particles=[],muted=true,audio,saveTimer=0,toastTimer,shakeStart=-Infinity,shakePulse=0,queuedDrop=false;
 let records=[];try{records=JSON.parse(localStorage.getItem(RECORDS)||'[]');if(!Array.isArray(records))records=[]}catch{}
 let best=records[0]?.score||0;$('best').textContent=best;
 const byId=new Map(counties.map(c=>[c.id,c]));
@@ -31,8 +32,7 @@ function geometry(ids){
   }
   const flat=rings.flat(),xs=flat.map(p=>p[0]),ys=flat.map(p=>p[1]);
   const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
-  const maxSize=ids.length===1?62:Math.min(245,104+ids.length*14);
-  const scale=maxSize/Math.max(maxX-minX,maxY-minY);
+  const scale=pieceScale(rings);
   const local=rings.map(r=>r.map(p=>({x:(p[0]-(minX+maxX)/2)*scale,y:(p[1]-(minY+maxY)/2)*scale})));
   const hull=Vertices.hull(local.flat()),center=Vertices.centre(hull);
   const polygons=local.map(r=>r.map(p=>({x:p.x-center.x,y:p.y-center.y})));
@@ -40,7 +40,11 @@ function geometry(ids){
 }
 function makePiece(ids,x,y,angle=0){
   const g=geometry(ids),body=Bodies.fromVertices(x,y,[g.hull],{friction:.42,frictionStatic:.7,restitution:.12,frictionAir:.015,density:.002,slop:.02});
-  Body.setAngle(body,angle);const piece={ids,body,g,born:engine.timing.timestamp,over:0};body.plugin.piece=piece;pieces.push(piece);Composite.add(engine.world,body);return piece;
+  Body.setAngle(body,angle);
+  const dx=body.bounds.min.x<8?8-body.bounds.min.x:body.bounds.max.x>W-8?W-8-body.bounds.max.x:0;
+  const dy=body.bounds.max.y>H-7?H-7-body.bounds.max.y:0;
+  Body.translate(body,{x:dx,y:dy});
+  const piece={ids,body,g,born:engine.timing.timestamp,over:0,enteredBox:body.bounds.min.y>=116};body.plugin.piece=piece;pieces.push(piece);Composite.add(engine.world,body);return piece;
 }
 function drawPiece(context,p,x,y,angle=0,alpha=1){
   context.save();context.globalAlpha=alpha;context.translate(x,y);context.rotate(angle);context.lineJoin='round';
@@ -52,7 +56,8 @@ function drawPiece(context,p,x,y,angle=0,alpha=1){
   context.restore();
 }
 function mapSVG(ids=counties.map(c=>c.id)){
-  const g=geometry(ids);return `<svg viewBox="-120 -120 240 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="台灣縣市分區地圖">${g.polygons.map((r,i)=>`<path d="M${r.map(p=>`${p.x*1.1},${p.y*1.1}`).join('L')}Z" fill="${regionOf(ids[i]).color}" stroke="#fffdf2" stroke-width="1"/>`).join('')}</svg>`;
+  const g=geometry(ids),points=g.polygons.flat(),left=Math.min(...points.map(p=>p.x))*1.1-8,top=Math.min(...points.map(p=>p.y))*1.1-8;
+  return `<svg viewBox="${left} ${top} ${g.width*1.1+16} ${g.height*1.1+16}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="台灣縣市分區地圖">${g.polygons.map((r,i)=>`<path d="M${r.map(p=>`${p.x*1.1},${p.y*1.1}`).join('L')}Z" fill="${regionOf(ids[i]).color}" stroke="#fffdf2" stroke-width="1"/>`).join('')}</svg>`;
 }
 $('title-map').innerHTML=mapSVG();
 function take(){if(!bag.length)bag=shuffledBag();return bag.shift()}
@@ -62,10 +67,10 @@ function updateUI(){
   const max=pieces.reduce((n,p)=>Math.max(n,p.ids.length),0);$('largest').textContent=`最大合體 ${max} / 22`;
   $('region-list').innerHTML=regions.map(r=>{const count=pieces.reduce((n,p)=>Math.max(n,p.ids.filter(id=>r.ids.includes(id)).length),0);return `<button class="region-row ${count===r.ids.length?'complete':''}" style="--c:${r.color}" data-region="${r.id}" aria-label="查看${r.name}"><span class="region-emblem">${r.short}</span><span class="region-info"><b>${r.name}</b><span class="region-progress"><i style="width:${count/r.ids.length*100}%"></i></span></span></button>`}).join('');
 }
-function resetGame(){Composite.clear(engine.world,false);Composite.add(engine.world,walls);pieces=[];particles=[];pending=[];bag=shuffledBag();current=take();next=take();score=0;shakeStart=-Infinity;shakePulse=0;dropNumber=0;overflow=0;lastDrop=-1000;aim=W/2;engine.timing.timestamp=0;clearSave();$('start-overlay').hidden=true;phase='playing';$('board-hint').hidden=false;$('game-status').textContent='找找看，誰和誰是鄰居？';updateUI();preview();canvas.focus({preventScroll:true})}
+function resetGame(){Composite.clear(engine.world,false);Composite.add(engine.world,walls);pieces=[];particles=[];pending=[];bag=shuffledBag();current=take();next=take();score=0;shakeStart=-Infinity;shakePulse=0,queuedDrop=false;dropNumber=0;overflow=0;lastDrop=-1000;aim=W/2;engine.timing.timestamp=0;clearSave();$('start-overlay').hidden=true;phase='playing';$('board-hint').hidden=false;$('game-status').textContent='找找看，誰和誰是鄰居？';updateUI();preview();canvas.focus({preventScroll:true})}
 function save(){if(phase!=='playing'&&phase!=='paused')return;storageSet(SAVE,{version:1,score,bag,current,next,dropNumber,pieces:pieces.map(p=>({ids:p.ids,x:p.body.position.x,y:p.body.position.y,angle:p.body.angle}))})}
 function resumeSaved(){const s=getSaved();if(!s){resetGame();return}resetGame();try{pieces.forEach(p=>Composite.remove(engine.world,p.body));pieces=[];if(!s.pieces.every(p=>p.ids.length&&p.ids.every(id=>byId.has(id))&&Number.isFinite(p.x)&&Number.isFinite(p.y)))throw Error();s.pieces.forEach(p=>makePiece(p.ids,p.x,p.y,p.angle));score=s.score;bag=s.bag;current=s.current;next=s.next;dropNumber=s.dropNumber;updateUI();preview()}catch{resetGame();toast('存檔無法讀取，已開始新旅程。')}}
-function drop(){if(phase!=='playing'||engine.timing.timestamp-lastDrop<580)return;lastDrop=engine.timing.timestamp;const g=geometry([current]);const x=Math.max(10+g.width/2,Math.min(W-10-g.width/2,aim));makePiece([current],x,72);score+=5;dropNumber++;current=next;next=take();$('board-hint').hidden=true;beep();preview();updateUI();save()}
+function drop(){if(phase!=='playing')return;if(performance.now()-lastDrop<280){queuedDrop=true;return}queuedDrop=false;lastDrop=performance.now();const g=geometry([current]);const x=Math.max(10+g.width/2,Math.min(W-10-g.width/2,aim));makePiece([current],x,72);score+=5;dropNumber++;current=next;next=take();$('board-hint').hidden=true;beep();preview();updateUI();save()}
 Events.on(engine,'collisionStart',e=>{for(const pair of e.pairs){const a=(pair.bodyA.parent||pair.bodyA).plugin.piece,b=(pair.bodyB.parent||pair.bodyB).plugin.piece;if(a&&b&&canMerge(a.ids,b.ids,counties))pending.push([a,b])}});
 function mergePending(){let changed=false;for(const [a,b]of pending){if(!pieces.includes(a)||!pieces.includes(b))continue;const ids=[...a.ids,...b.ids];const x=(a.body.position.x+b.body.position.x)/2,y=Math.max(70,(a.body.position.y+b.body.position.y)/2);pieces=pieces.filter(p=>p!==a&&p!==b);Composite.remove(engine.world,[a.body,b.body]);const p=makePiece(ids,x,y);Body.setVelocity(p.body,{x:0,y:-1});score+=mergeScore(ids);if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches)for(let i=0;i<16;i++)particles.push({x,y,vx:(Math.random()-.5)*5,vy:(Math.random()-.8)*5,life:1,color:regionOf(ids[0]).color});beep(true);changed=true;const completed=completedRegions(ids);if(completed.length&&completed.reduce((n,r)=>n+r.ids.length,0)===ids.length){toast(ids.length===22?'台灣裝進去了！':`${completed.map(r=>r.name).join('、')}合體完成！`);$('game-status').textContent=`已完成 ${completed.length} 個地方`;}if(ids.length===22){endGame(true);break}}
 pending=[];if(changed){updateUI();save()}}
@@ -79,9 +84,9 @@ function shake(){
   if(phase!=='playing'||engine.timing.timestamp-shakeStart<650)return;
   shakeStart=engine.timing.timestamp;shakePulse=1;
   for(const p of pieces)p.over=0;
-  joltBodies(window.Matter,pieces.map(p=>p.body),1);
+  joltBodies(window.Matter,shakeablePieces(pieces,engine.timing.timestamp).map(p=>p.body),1);
   if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches)canvas.parentElement.animate([{transform:'translateX(0)'},{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'translateX(-4px)'},{transform:'translateX(4px)'},{transform:'translateX(0)'}],{duration:480});
-  beep();save();
+  canvas.focus({preventScroll:true});beep();save();
 }
 function point(e){const r=canvas.getBoundingClientRect();aim=Math.max(40,Math.min(W-40,(e.clientX-r.left)*W/r.width))}
 canvas.addEventListener('pointermove',point);canvas.addEventListener('pointerdown',e=>{if(phase!=='playing')return;point(e);canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointerup',e=>{point(e);drop()});
@@ -94,7 +99,7 @@ $('dialog-content').onclick=async e=>{const action=e.target.closest('[data-actio
 $('region-list').onclick=e=>{const id=e.target.closest('[data-region]')?.dataset.region;if(!id)return;const r=regions.find(r=>r.id===id);openDialog(`<span class="dialog-kicker">ISLAND COLLECTION</span><h2 style="color:${r.dark}">${r.name}</h2><div style="height:180px;text-align:center">${mapSVG(r.ids)}</div><p>${r.ids.map(id=>byId.get(id).name).join(' · ')}</p><p class="map-note">${r.id==='islands'?'離島縣市碰到即可合體。':'相鄰的縣市在箱子裡碰到就會合體；重複縣市不會合體。'}收齊 ${r.ids.length} 個縣市，即可完成${r.name}。</p>`)};
 $('show-records').onclick=()=>openDialog(`<span class="dialog-kicker">PERSONAL BEST</span><h2>我的島嶼紀錄</h2>${records.length?records.map((r,i)=>`<div class="record-row"><span>0${i+1}　${r.date}</span><b>${r.score} 分</b></div>`).join(''):'<p>還沒有紀錄。裝滿第一箱台灣，就從現在開始。</p>'}<p class="map-note">紀錄保存在這台裝置的瀏覽器中。</p>`);
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&phase==='playing')pauseGame()});window.addEventListener('pagehide',save);
-function frame(time){const delta=Math.min(50,Math.max(0,time-(lastTime||time)));lastTime=time;if(phase==='playing'){const shaking=engine.timing.timestamp-shakeStart;if(shakePulse>0&&shakePulse<3&&shaking>=shakePulse*170){joltBodies(window.Matter,pieces.map(p=>p.body),shakePulse%2?-1:1);shakePulse++}accumulator+=delta;while(accumulator>=1000/60){Engine.update(engine,1000/60);accumulator-=1000/60}mergePending();const danger=pieces.some(p=>{const high=p.body.bounds.min.y<116&&engine.timing.timestamp-p.born>2000&&p.body.speed<1.5;p.over=high?p.over+delta:0;return p.over>2500});overflow=pieces.some(p=>p.over>0)?Math.max(...pieces.map(p=>p.over)):0;if(danger)endGame();if(time-saveTimer>2500){save();saveTimer=time}}else{accumulator=0}
+function frame(time){const delta=Math.min(50,Math.max(0,time-(lastTime||time)));lastTime=time;if(phase==='playing'){const shaking=engine.timing.timestamp-shakeStart;if(shakePulse>0&&shakePulse<3&&shaking>=shakePulse*170){joltBodies(window.Matter,shakeablePieces(pieces,engine.timing.timestamp).map(p=>p.body),shakePulse%2?-1:1);shakePulse++}accumulator+=delta;while(accumulator>=1000/60){Engine.update(engine,1000/60);accumulator-=1000/60}mergePending();if(queuedDrop&&performance.now()-lastDrop>=280)drop();for(const p of pieces)if(p.body.bounds.min.y>=116)p.enteredBox=true;const danger=pieces.some(p=>{const high=engine.timing.timestamp-shakeStart>1400&&p.body.bounds.min.y<116&&engine.timing.timestamp-p.born>2000&&p.body.speed<1.5;p.over=high?p.over+delta:0;return p.over>2500});overflow=pieces.some(p=>p.over>0)?Math.max(...pieces.map(p=>p.over)):0;if(danger)endGame();if(time-saveTimer>2500){save();saveTimer=time}}else{accumulator=0}
 ctx.clearRect(0,0,W,H);ctx.strokeStyle='#b9c9ad';ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(5,113);ctx.lineTo(5,H-9);ctx.quadraticCurveTo(5,H-3,13,H-3);ctx.lineTo(W-13,H-3);ctx.quadraticCurveTo(W-5,H-3,W-5,H-9);ctx.lineTo(W-5,113);ctx.stroke();ctx.save();ctx.setLineDash([4,6]);ctx.strokeStyle=overflow?'#cf775f':'#d8b3a0';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(10,116);ctx.lineTo(W-10,116);ctx.stroke();ctx.restore();
 if(overflow){ctx.fillStyle='#c97960';ctx.font='10px sans-serif';ctx.textAlign='right';ctx.fillText(`快滿了！${((2500-overflow)/1000).toFixed(1)}s`,W-15,109)}
 for(const p of pieces)drawPiece(ctx,p,p.body.position.x,p.body.position.y,p.body.angle);
