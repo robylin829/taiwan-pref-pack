@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f3eb">
+  <meta name="description" content="把台灣 22 縣市裝進小小的箱子。讓相鄰縣市碰撞合體，收集北部、東部、中部、南部與離島，拼出屬於你的台灣！">
+  <title>台灣裝得下！｜縣市合體遊戲</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="./"><span class="brand-icon">嶼</span><span>島嶼遊戲室<small>ISLAND PLAY CLUB</small></span></a><button class="plain-button" id="rules">玩法說明 <span>↗</span></button></header>
+  <main class="layout">
+    <section class="intro">
+      <div class="eyebrow"><span></span> 小小一箱，大大台灣</div>
+      <h1>台灣<br>裝得下<span class="orange">！</span></h1>
+      <p class="intro-copy">從一片縣市開始，<br>把我們的島嶼，慢慢拼在一起。</p>
+      <div class="region-pills" aria-label="五大地方"><span style="--c:#82b8a4">北部地方</span><span style="--c:#b4a4d2">東部地方</span><span style="--c:#edc46c">中部地方</span><span style="--c:#e69c86">南部地方</span><span style="--c:#87b7d0">離島地方</span></div>
+      <div class="intro-bottom"><span class="little-sun">✳</span><p>22 個縣市，5 個地方，1 座島。<br><b>你的台灣，會是什麼形狀？</b></p></div>
+      <span class="edition">TAIWAN EDITION <span>—</span> VOL. 01</span>
+    </section>
+    <section class="game-shell" aria-label="台灣縣市合體遊戲">
+      <div class="game-topline"><span><i></i> 台灣縣市合體</span><button id="sound" class="icon-button" aria-label="開啟音效" title="音效">♪</button><button id="pause" class="icon-button" aria-label="暫停遊戲" title="暫停">Ⅱ</button></div>
+      <div class="scoreboard"><div><span>最高紀錄</span><strong id="best">0</strong></div><div class="main-score"><span>SCORE</span><strong id="score">0</strong></div><div class="next-piece"><span>下一個</span><canvas id="next" width="100" height="80" aria-label="下一個縣市"></canvas><b id="next-name">準備出發</b></div></div>
+      <div class="board-wrap"><canvas id="game" width="390" height="520" tabindex="0" aria-label="遊戲區：左右移動選擇位置，點擊或空白鍵落下縣市"></canvas><div class="board-hint" id="board-hint">左右移動 · 點一下放下</div>
+        <div class="start-overlay" id="start-overlay"><div class="start-stamp">台灣限定 / TAIWAN ONLY</div><div id="title-map" class="title-map" aria-hidden="true"></div><h2>一塊一塊，<br>拼成我們的台灣。</h2><p>讓相鄰的縣市碰在一起，<br>合體成地方，再收集完整台灣。</p><button class="primary-button" id="start">開始裝台灣 <span>↗</span></button><button id="continue" class="continue-button" hidden>繼續上次旅程 →</button><small>滑鼠、觸控、鍵盤都能玩</small></div>
+      </div>
+      <div class="game-controls"><button id="reset" aria-label="重新開始"><span>↻</span><small>重來</small></button><button id="map"><span>▧</span><small>台灣地圖</small></button><button id="shuffle" class="shuffle"><span>〰</span><b>搖一搖</b><small id="shuffle-count">3 次機會</small></button></div>
+      <div class="game-bottom"><span id="largest">最大合體 0 / 22</span><span id="game-status">準備好，讓島嶼相遇。</span></div>
+    </section>
+    <aside class="collection"><div class="section-label">YOUR ISLAND COLLECTION</div><h2>收集五個地方<span>↙</span></h2><p class="collection-copy">同個地方的相鄰縣市，<br>碰在一起就能合體。</p><div id="region-list"></div><div class="tip"><span>✦</span><p>小秘訣<br><b>別急著落下，找找鄰居在哪裡。<br>卡住的時候，試著搖一搖！</b></p></div><button class="text-button" id="show-records">我的最佳紀錄 <span>↗</span></button></aside>
+  </main>
+  <footer><span>MADE FOR THIS LITTLE ISLAND.</span><span>一款關於相遇與合體的小遊戲 <i>✳</i></span><a href="https://sns.dopagamelab.com/pref-pack/" target="_blank" rel="noopener noreferrer">玩法靈感 ↗</a></footer>
+  <dialog id="dialog"><button id="close-dialog" class="dialog-close" aria-label="關閉視窗">×</button><div id="dialog-content"></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="./vendor/decomp.min.js"></script><script src="./vendor/matter.min.js"></script><script type="module" src="./src/main.js"></script>
+</body>
+</html>
