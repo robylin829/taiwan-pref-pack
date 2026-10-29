@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <header class="site-header"><a class="brand" href="./"><span class="brand-icon">嶼</span><span>島嶼遊戲室<small>ISLAND PLAY CLUB</small></span></a><button class="plain-button" id="rules">玩法說明 <span>↗</span></button></header>
+  <header class="site-header"><a class="brand" href="./"><span class="brand-icon">嶼</span><span>島嶼遊戲室<small>ISLAND PLAY CLUB</small></span></a></header>
   <main class="layout">
     <section class="intro">
       <div class="eyebrow"><span></span> 小小一箱，大大台灣</div>
@@ -21,7 +21,7 @@
       <span class="edition">TAIWAN EDITION <span>—</span> VOL. 01</span>
     </section>
     <section class="game-shell" aria-label="台灣縣市合體遊戲">
-      <div class="game-topline"><span><i></i> 台灣縣市合體</span><button id="sound" class="icon-button" aria-label="開啟音效" title="音效">♪</button><button id="pause" class="icon-button" aria-label="暫停遊戲" title="暫停">Ⅱ</button></div>
+      <div class="game-topline"><span><i></i> 台灣縣市合體</span><button id="rules" class="icon-button rules-button" aria-label="玩法說明" title="玩法說明">?</button><button id="sound" class="icon-button" aria-label="開啟音效" title="音效">♪</button><button id="pause" class="icon-button" aria-label="暫停遊戲" title="暫停">Ⅱ</button></div>
       <div class="scoreboard"><div><span>最高紀錄</span><strong id="best">0</strong></div><div class="main-score"><span>SCORE</span><strong id="score">0</strong></div><div class="next-piece"><span>下一個</span><canvas id="next" width="100" height="80" aria-label="下一個縣市"></canvas><b id="next-name">準備出發</b></div></div>
       <div class="board-wrap"><canvas id="game" width="390" height="520" tabindex="0" aria-label="遊戲區：左右移動選擇位置，點擊或空白鍵落下縣市"></canvas><div class="board-hint" id="board-hint">左右移動 · 點一下放下</div>
         <div class="start-overlay" id="start-overlay"><div class="start-stamp">台灣限定 / TAIWAN ONLY</div><div id="title-map" class="title-map" aria-hidden="true"></div><h2>一塊一塊，<br>拼成我們的台灣。</h2><p>讓相鄰的縣市碰在一起，<br>合體成地方，再收集完整台灣。</p><button class="primary-button" id="start">開始裝台灣 <span>↗</span></button><button id="continue" class="continue-button" hidden>繼續上次旅程 →</button><small>滑鼠、觸控、鍵盤都能玩</small></div>

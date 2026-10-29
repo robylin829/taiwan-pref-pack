@@ -1,4 +1,5 @@
 import {counties} from './counties.js';
+import {countyLabelAnchors,visibleCountyLabels} from './labels.js';
 import {regions,regionOf,completedRegions,canMerge,mergeScore,shuffledBag} from './model.js';
 const {Engine,Bodies,Body,Composite,Events,Common,Vertices}=window.Matter;
 Common.setDecomp(window.decomp);
@@ -34,7 +35,7 @@ function geometry(ids){
   const local=rings.map(r=>r.map(p=>({x:(p[0]-(minX+maxX)/2)*scale,y:(p[1]-(minY+maxY)/2)*scale})));
   const hull=Vertices.hull(local.flat()),center=Vertices.centre(hull);
   const polygons=local.map(r=>r.map(p=>({x:p.x-center.x,y:p.y-center.y})));
-  return {polygons,hull:hull.map(p=>({x:p.x-center.x,y:p.y-center.y})),width:(maxX-minX)*scale,height:(maxY-minY)*scale};
+  return {polygons,labels:countyLabelAnchors(polygons),hull:hull.map(p=>({x:p.x-center.x,y:p.y-center.y})),width:(maxX-minX)*scale,height:(maxY-minY)*scale};
 }
 function makePiece(ids,x,y,angle=0){
   const g=geometry(ids),body=Bodies.fromVertices(x,y,[g.hull],{friction:.42,frictionStatic:.7,restitution:.12,frictionAir:.015,density:.002,slop:.02});
@@ -43,8 +44,11 @@ function makePiece(ids,x,y,angle=0){
 function drawPiece(context,p,x,y,angle=0,alpha=1){
   context.save();context.globalAlpha=alpha;context.translate(x,y);context.rotate(angle);context.lineJoin='round';
   p.g.polygons.forEach((ring,i)=>{context.beginPath();ring.forEach((v,j)=>j?context.lineTo(v.x,v.y):context.moveTo(v.x,v.y));context.closePath();context.shadowColor='#2d493421';context.shadowBlur=3;context.shadowOffsetY=3;context.fillStyle=regionOf(p.ids[i]).color;context.fill();context.shadowColor='transparent';context.strokeStyle='#fffdf2';context.lineWidth=1.6;context.stroke()});
-  context.rotate(-angle);const complete=completedRegions(p.ids);const label=p.ids.length===22?'台灣':complete.length===1&&complete[0].ids.length===p.ids.length?complete[0].name:p.ids.length===1?byId.get(p.ids[0]).name:`${p.ids.length} 縣市`;
-  context.font=`${p.ids.length>1?700:600} ${p.ids.length>1?12:11}px "Noto Sans TC",sans-serif`;context.textAlign='center';context.textBaseline='middle';context.lineWidth=3;context.strokeStyle='#fffdf0dd';context.strokeText(label,0,0);context.fillStyle='#314e43';context.fillText(label,0,0);context.restore();
+  context.rotate(-angle);
+  context.font='600 11px "Noto Sans TC",sans-serif';context.textAlign='center';context.textBaseline='middle';context.lineWidth=3;context.strokeStyle='#fffdf0dd';context.fillStyle='#314e43';
+  const labels=visibleCountyLabels(p.g.labels,angle,i=>context.measureText(byId.get(p.ids[i]).name).width,p.ids.length===1);
+  for(const label of labels){const name=byId.get(p.ids[label.index]).name;context.strokeText(name,label.x,label.y);context.fillText(name,label.x,label.y)}
+  context.restore();
 }
 function mapSVG(ids=counties.map(c=>c.id)){
   const g=geometry(ids);return `<svg viewBox="-120 -120 240 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="台灣縣市分區地圖">${g.polygons.map((r,i)=>`<path d="M${r.map(p=>`${p.x*1.1},${p.y*1.1}`).join('L')}Z" fill="${regionOf(ids[i]).color}" stroke="#fffdf2" stroke-width="1"/>`).join('')}</svg>`;
@@ -55,7 +59,7 @@ function preview(){const c=$('next').getContext('2d');c.clearRect(0,0,100,80);if
 function updateUI(){
   $('score').textContent=score;$('best').textContent=Math.max(best,score);$('shuffle-count').textContent=`${shakes} 次機會`;$('shuffle').disabled=phase!=='playing'||shakes===0;$('pause').disabled=phase==='home'||phase==='over';$('reset').disabled=phase==='home';
   const max=pieces.reduce((n,p)=>Math.max(n,p.ids.length),0);$('largest').textContent=`最大合體 ${max} / 22`;
-  $('region-list').innerHTML=regions.map(r=>{const count=pieces.reduce((n,p)=>Math.max(n,p.ids.filter(id=>r.ids.includes(id)).length),0);return `<button class="region-row ${count===r.ids.length?'complete':''}" style="--c:${r.color}" data-region="${r.id}" aria-label="查看${r.name}，${count}/${r.ids.length}"><span class="region-emblem">${r.short}</span><span class="region-info"><b>${r.name}</b><span class="region-progress"><i style="width:${count/r.ids.length*100}%"></i></span></span><span class="region-count">${count===r.ids.length?'✓':`${count} / ${r.ids.length}`}</span></button>`}).join('');
+  $('region-list').innerHTML=regions.map(r=>{const count=pieces.reduce((n,p)=>Math.max(n,p.ids.filter(id=>r.ids.includes(id)).length),0);return `<button class="region-row ${count===r.ids.length?'complete':''}" style="--c:${r.color}" data-region="${r.id}" aria-label="查看${r.name}"><span class="region-emblem">${r.short}</span><span class="region-info"><b>${r.name}</b><span class="region-progress"><i style="width:${count/r.ids.length*100}%"></i></span></span></button>`}).join('');
 }
 function resetGame(){Composite.clear(engine.world,false);Composite.add(engine.world,walls);pieces=[];particles=[];pending=[];bag=shuffledBag();current=take();next=take();score=0;shakes=3;dropNumber=0;overflow=0;lastDrop=-1000;aim=W/2;engine.timing.timestamp=0;clearSave();$('start-overlay').hidden=true;phase='playing';$('board-hint').hidden=false;$('game-status').textContent='找找看，誰和誰是鄰居？';updateUI();preview();canvas.focus({preventScroll:true})}
 function save(){if(phase!=='playing'&&phase!=='paused')return;storageSet(SAVE,{version:1,score,shakes,bag,current,next,dropNumber,pieces:pieces.map(p=>({ids:p.ids,x:p.body.position.x,y:p.body.position.y,angle:p.body.angle}))})}
